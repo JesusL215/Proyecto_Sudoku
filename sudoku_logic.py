@@ -11,9 +11,10 @@ def crear_tablero_vacio() -> Board:
     return tuple(tuple(0 for _ in range(9)) for _ in range(9))
 
 
-def es_movimiento_valido_funcional(tablero: Board, fila: int, col: int, num: int) -> bool:
+def es_movimiento_valido(tablero: Board, fila: int, col: int, num: int) -> bool:
     """
     Validación usando estilo puramente funcional (sin if/for explícitos).
+    ANTES SE LLAMABA: es_movimiento_valido_funcional
     """
     # Validar fila y columna usando generadores
     fila_ok = num not in tablero[fila]
@@ -44,15 +45,11 @@ def colocar_numero(tablero: Board, fila: int, col: int, num: int) -> Board:
 def generar_partida_numpy(cantidad_a_borrar: int = 40) -> Board:
     """
     Genera un tablero de Sudoku válido usando Numpy para la aleatoriedad.
-    1. Crea un tablero base.
-    2. Lo resuelve (para tener una solución válida).
-    3. Elimina números aleatoriamente para crear el puzzle.
     """
     # Usamos Numpy para crear la matriz inicial de ceros
     matriz_np = np.zeros((9, 9), dtype=int)
 
     # Rellenar las diagonales principales (3 bloques de 3x3) independientemente
-    # Esto asegura que el solucionador encuentre una solución válida rápido.
     for i in range(0, 9, 3):
         numeros = np.arange(1, 10)
         np.random.shuffle(numeros)  # Mezcla aleatoria con Numpy
@@ -62,7 +59,6 @@ def generar_partida_numpy(cantidad_a_borrar: int = 40) -> Board:
     tablero_inicial = tuple(tuple(int(x) for x in fila) for fila in matriz_np)
 
     # Importamos aquí para evitar referencias circulares al inicio
-    # (El solver necesita logic, y logic ahora necesita solver para generar)
     from sudoku_solver import resolver_sudoku
 
     # Resolvemos el tablero para tener un juego completo válido

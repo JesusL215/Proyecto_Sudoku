@@ -10,18 +10,22 @@ class SudokuApp:
     def __init__(self, root):
         self.root = root
         self.root.title("Sudoku Funcional - UTP")
-        self.root.geometry("450x550")  # Un poco más ancho para el botón extra
+        self.root.geometry("450x550")
         self.root.resizable(False, False)
 
         # Iniciamos con un juego generado por Numpy
         self.tablero_actual = sudoku_logic.generar_partida_numpy(cantidad_a_borrar=40)
 
         self.celdas = {}
-        self.historial = []  # Pila para guardar los estados pasados (Snapshots)
+        self.historial = []  # Pila para guardar los estados pasados
         self.start_time = time.time()
 
         self.crear_interfaz()
         self.actualizar_gui(self.tablero_actual)
+
+        # CORRECCIÓN 1: Guardar el estado inicial limpio en el historial
+        # Así siempre tendrás un punto al cual volver si te equivocas al principio
+        self.historial.append(self.tablero_actual)
 
     def crear_interfaz(self):
         # Título
@@ -36,7 +40,6 @@ class SudokuApp:
         for r in range(9):
             for c in range(9):
                 bg_color = "#ffffff"
-                # Pintar tablero tipo ajedrez por bloques de 3x3
                 if (r // 3 + c // 3) % 2 == 1:
                     bg_color = "#e0e0e0"
 
@@ -48,19 +51,14 @@ class SudokuApp:
         btn_frame = tk.Frame(self.root)
         btn_frame.pack(pady=20)
 
-        # Botones
         tk.Button(btn_frame, text="Nuevo", command=self.nuevo_juego, bg="#dddddd").grid(row=0, column=0, padx=5)
         tk.Button(btn_frame, text="Validar", command=self.validar_manual, bg="#dddddd").grid(row=0, column=1, padx=5)
         tk.Button(btn_frame, text="Resolver", command=self.resolver_auto, bg="lightblue").grid(row=0, column=2, padx=5)
         tk.Button(btn_frame, text="Stats", command=self.guardar_stats, bg="#dddddd").grid(row=0, column=3, padx=5)
-
-        # NUEVO BOTÓN: Deshacer
-        # Color naranja suave para destacar
         tk.Button(btn_frame, text="Deshacer", command=self.deshacer_movimiento, bg="#ffcc99").grid(row=0, column=4,
                                                                                                    padx=5)
 
     def obtener_tablero_de_gui(self):
-        """Lee la GUI y crea una estructura de tablero (tupla)."""
         lista_temp = []
         for r in range(9):
             fila = []
@@ -80,14 +78,13 @@ class SudokuApp:
                 if tablero[r][c] != 0:
                     self.celdas[(r, c)].insert(0, str(tablero[r][c]))
 
-        # Restaurar colores originales (quitar rojos si los hubo)
         for r in range(9):
             for c in range(9):
                 bg = "#e0e0e0" if (r // 3 + c // 3) % 2 == 1 else "#ffffff"
                 self.celdas[(r, c)].config(bg=bg)
 
     def validar_manual(self):
-        # GUARDAMOS ESTADO ANTES DE VALIDAR (Para poder deshacer si borramos algo luego)
+        # Guardamos estado actual (con tus números) antes de validar
         self.guardar_estado_en_historial()
 
         tablero_gui = self.obtener_tablero_de_gui()
@@ -97,7 +94,6 @@ class SudokuApp:
             for c in range(9):
                 num = tablero_gui[r][c]
                 if num != 0:
-                    # Validación temporal
                     tablero_temp = list(list(f) for f in tablero_gui)
                     tablero_temp[r][c] = 0
                     tablero_temp = tuple(tuple(f) for f in tablero_temp)
@@ -115,8 +111,6 @@ class SudokuApp:
             messagebox.showwarning("Cuidado", "Hay errores marcados en rojo.")
 
     def resolver_auto(self):
-        # GUARDAR ESTADO: Antes de resolver, guardamos como estaba
-        # Esto permite al usuario presionar "Deshacer" y volver a intentar resolverlo él mismo
         self.guardar_estado_en_historial()
 
         tablero_gui = self.obtener_tablero_de_gui()
@@ -125,7 +119,7 @@ class SudokuApp:
         end = time.time()
 
         if solucion:
-            self.tablero_actual = solucion  # Actualizamos la referencia interna
+            self.tablero_actual = solucion
             self.actualizar_gui(solucion)
             tiempo = end - start
             messagebox.showinfo("Éxito", f"¡Resuelto en {tiempo:.4f} segundos!")
@@ -133,20 +127,25 @@ class SudokuApp:
             messagebox.showerror("Error", "Este tablero no tiene solución.")
 
     def guardar_estado_en_historial(self):
-        """Toma una 'foto' del tablero actual y la guarda en la pila."""
         estado_actual = self.obtener_tablero_de_gui()
         self.historial.append(estado_actual)
 
     def deshacer_movimiento(self):
-        """Recupera el último estado guardado (Inmutabilidad)."""
         if not self.historial:
             messagebox.showinfo("Info", "No hay acciones anteriores para deshacer.")
             return
 
-        # Sacamos el último estado de la pila (LIFO)
-        estado_anterior = self.historial.pop()
+        # Lógica corregida: Si el historial tiene 1 solo elemento (el inicial),
+        # no lo eliminamos del todo (pop), sino que lo usamos para restaurar
+        # y lo mantenemos ahí para que siempre puedas volver al inicio.
 
-        # Restauramos ese estado
+        if len(self.historial) == 1:
+            estado_anterior = self.historial[0]  # Miramos el inicial sin sacarlo
+            # Opcional: Avisar al usuario
+            # messagebox.showinfo("Info", "Has vuelto al inicio de la partida.")
+        else:
+            estado_anterior = self.historial.pop()  # Sacamos el último estado
+
         self.tablero_actual = estado_anterior
         self.actualizar_gui(self.tablero_actual)
 
@@ -158,9 +157,13 @@ class SudokuApp:
 
     def nuevo_juego(self):
         try:
-            self.historial.clear()  # Limpiar historial al empezar nuevo juego
+            self.historial.clear()
             self.tablero_actual = sudoku_logic.generar_partida_numpy(40)
             self.actualizar_gui(self.tablero_actual)
+
+            # CORRECCIÓN 2: Guardar también aquí el tablero limpio
+            self.historial.append(self.tablero_actual)
+
             self.start_time = time.time()
             messagebox.showinfo("Nuevo Juego", "¡Tablero generado con Numpy!")
         except Exception as e:
