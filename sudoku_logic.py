@@ -11,28 +11,21 @@ def crear_tablero_vacio() -> Board:
     return tuple(tuple(0 for _ in range(9)) for _ in range(9))
 
 
-def es_movimiento_valido(tablero: Board, fila: int, col: int, num: int) -> bool:
+def es_movimiento_valido_funcional(tablero: Board, fila: int, col: int, num: int) -> bool:
     """
-    Función Pura: Valida si un número puede ir en una posición.
-    No modifica nada, solo retorna True/False.
+    Validación usando estilo puramente funcional (sin if/for explícitos).
     """
-    # 1. Validar Fila
-    if num in tablero[fila]:
-        return False
+    # Validar fila y columna usando generadores
+    fila_ok = num not in tablero[fila]
+    col_ok = num not in (tablero[r][col] for r in range(9))
 
-    # 2. Validar Columna
-    columna = tuple(tablero[r][col] for r in range(9))
-    if num in columna:
-        return False
+    # Validar cuadrante usando lógica matemática y generadores
+    r0, c0 = 3 * (fila // 3), 3 * (col // 3)
+    cuadrante = (tablero[r][c] for r in range(r0, r0 + 3) for c in range(c0, c0 + 3))
+    cuad_ok = num not in cuadrante
 
-    # 3. Validar Cuadrante 3x3
-    inicio_fila, inicio_col = 3 * (fila // 3), 3 * (col // 3)
-    for r in range(inicio_fila, inicio_fila + 3):
-        for c in range(inicio_col, inicio_col + 3):
-            if tablero[r][c] == num:
-                return False
-
-    return True
+    # Retornar la conjunción de todas las condiciones
+    return fila_ok and col_ok and cuad_ok
 
 
 def colocar_numero(tablero: Board, fila: int, col: int, num: int) -> Board:
